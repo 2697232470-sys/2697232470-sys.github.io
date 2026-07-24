@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="description" content="在浏览器中批量识别电子发票、人工复核并导出 Excel" />
+  <meta name="description" content="在浏览器中批量识别电子发票、校验商品明细、导入税务局Excel对账并导出结果" />
   <meta name="theme-color" content="#071326" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
@@ -15,16 +15,16 @@
 <body>
 <div class="shell">
   <div class="topbar">
-    <div class="brand"><div class="logo">票</div><div class="title"><h1>电子发票批量识别与 Excel 汇总助手</h1><p>批量上传 · 自动识别 · 人工复核 · 一键导出</p></div></div>
-    <div class="privacy">🔒 发票在当前浏览器内解析，网站不主动上传文件</div>
+    <div class="brand"><div class="logo">票</div><div class="title"><h1>电子发票批量识别与 Excel 汇总助手</h1><p>高精度解析 · 明细校验 · 税务局对账 · 一键导出</p></div></div>
+    <div class="privacy">🔒 文件在当前浏览器内解析，网站不主动上传文件</div>
   </div>
 
   <section class="card upload-card">
     <div id="dropZone" class="upload-zone">
-      <div><div class="upload-icon">⬆</div><h2>将发票拖到这里，或点击选择文件</h2><p>支持 PDF、JPG、JPEG、PNG；可一次选择多份文件</p><div class="btn-row"><button id="selectBtn" class="btn btn-primary">选择发票文件</button></div><div class="small-note">文字型 PDF 直接解析；扫描件和图片会启动 OCR，第一次使用需下载识别组件</div></div>
+      <div><div class="upload-icon">⬆</div><h2>将发票拖到这里，或点击选择文件</h2><p>支持 PDF、JPG、JPEG、PNG；可一次选择多份文件</p><div class="btn-row"><button id="selectBtn" class="btn btn-primary">选择发票文件</button></div><div class="small-note">优先读取PDF原始文字和精确坐标；只有字段缺失或图片发票才启动免费AI补充识别</div></div>
     </div>
     <input id="fileInput" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" multiple class="hidden" />
-    <div id="filePanel" class="file-panel"><div class="file-head"><strong id="fileCountText">已选择 0 个文件</strong><button id="clearFilesBtn" class="btn btn-secondary">清空文件</button></div><div id="fileList" class="file-list"></div><div class="actionbar"><button id="startBtn" class="btn btn-primary">开始识别</button></div></div>
+    <div id="filePanel" class="file-panel"><div class="file-head"><strong id="fileCountText">已选择 0 个文件</strong><button id="clearFilesBtn" class="btn btn-secondary">清空文件</button></div><div id="fileList" class="file-list"></div><div class="actionbar"><button id="startBtn" class="btn btn-primary">开始高精度识别</button></div></div>
   </section>
 
   <section id="results" class="results">
@@ -39,18 +39,18 @@
     <div class="card result-card">
       <div class="result-toolbar">
         <div class="tabs"><button class="tab active" data-tab="summary">发票汇总</button><button class="tab" data-tab="detail">发票明细</button><button class="tab" data-tab="review">待人工复核</button></div>
-        <div class="tools"><input id="searchInput" class="search" placeholder="搜索文件名、发票号码或单位"/><select id="statusFilter" class="select"><option value="">全部状态</option><option value="success">识别成功</option><option value="pending_review">待人工复核</option><option value="failed">识别失败</option><option value="duplicate">疑似重复</option><option value="amount_error">金额异常</option></select><button id="exportBtn" class="btn btn-primary">导出 Excel</button><button id="resetBtn" class="btn btn-secondary">开始新一批</button></div>
+        <div class="tools"><input id="searchInput" class="search" placeholder="搜索文件名、发票号码或单位"/><select id="statusFilter" class="select"><option value="">全部状态</option><option value="success">识别成功</option><option value="pending_review">待人工复核</option><option value="failed">识别失败</option></select><button id="exportBtn" class="btn btn-primary">导出 Excel</button><button id="resetBtn" class="btn btn-secondary">开始新一批</button></div>
       </div>
       <div id="tableWrap" class="table-wrap"></div>
     </div>
   </section>
-  <div class="footer">建议财务人员重点复核：发票号码、购销双方、金额、税额及商品明细。识别结果不等同于税务真伪查验。</div>
+  <div class="footer">系统会校验发票号码、购销双方、税号、金额关系和全部商品明细；无法确认的数据不会静默进入成功结果。</div>
 </div>
 
 <div id="progressLayer" class="progress-layer"><div class="progress-box"><div id="progressTitle" class="progress-title">正在识别发票</div><div id="progressSub" class="progress-sub">准备中…</div><div class="progress-track"><div id="progressBar" class="progress-bar"></div></div><div id="progressText" class="progress-text">0%</div></div></div>
 <div id="editModal" class="modal"><div class="modal-card"><div class="modal-head"><h3>编辑发票识别结果</h3><button id="modalClose" class="icon-btn">✕</button></div><div id="modalBody" class="modal-body"></div><div class="modal-foot"><button id="markReviewedBtn" class="btn btn-secondary">标记已复核</button><button id="modalCancel" class="btn btn-secondary">取消</button><button id="modalSave" class="btn btn-primary">保存修改</button></div></div></div>
 <div id="toastWrap" class="toast-wrap"></div>
 
-<script src="app.js?v=20260725-invoice-layout-2"></script>
+<script src="final-loader.js?v=20260725-final5"></script>
 </body>
 </html>
