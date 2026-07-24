@@ -3,8 +3,45 @@ thod,status:'success',exceptionNote:'',isDuplicate:false,reviewStatus:'unreviewe
   function detectDuplicates(){ const map=new Map();state.records.forEach(r=>{r.isDuplicate=false;if(!r.invoiceNumber)return;const k=[r.invoiceCode,r.invoiceNumber,r.invoiceDate,r.sellerName,r.totalAmountWithTax].join('|');if(!map.has(k))map.set(k,[]);map.get(k).push(r);});for(const group of map.values())if(group.length>1)group.forEach(r=>r.isDuplicate=true);state.records.forEach(determine); }
 
   function groupRows(items,width,height){ const sorted=items.map(i=>({...i,y:height-i.y})).sort((a,b)=>a.y-b.y||a.x-b.x);const rows=[];for(const it of sorted){let row=rows.find(r=>Math.abs(r.y-it.y)<5);if(!row){row={y:it.y,width,items:[]};rows.push(row);}row.items.push(it);}rows.forEach(r=>r.items.sort((a,b)=>a.x-b.x));return rows; }
+  function repairClassicInvoice(rec,rows,width,height){
+    if(!rows?.length)return rec;
+    const all=rows.flatMap(r=>r.items.map(i=>({...i,rowY:r.y,width:r.width}))).filter(i=>i.str&&String(i.str).trim());
+    const compact=v=>String(v||'').replace(/\s+/g,'').toUpperCase();
+    const pure20=all.map(i=>({v:compact(i.str),y:i.rowY,x:i.x})).filter(x=>/^\d{20}$/.test(x.v)).sort((a,b)=>a.y-b.y||b.x-a.x);
+    if(pure20.length)rec.invoiceNumber=pure20[0].v;
+    const dateItem=all.find(i=>/20\d{2}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日?/.test(i.str));
+    if(dateItem)rec.invoiceDate=parseDate(dateItem.str);
+    const companyItems=all.filter(i=>/(有限责任公司|股份有限公司|有限公司|公司|经营部|商行|中心|厂|事务所|合作社|个体工商户)/.test(i.str)&&!/(发票|购买方|销售方|开票人)/.test(i.str));
+    const buyerCompany=companyItems.filter(i=>i.x<width*.5).sort((a,b)=>a.rowY-b.rowY)[0];
+    const sellerCompany=companyItems.filter(i=>i.x>=width*.5).sort((a,b)=>a.rowY-b.rowY)[0];
+    if(buyerCompany)rec.buyerName=cleanCompany(buyerCompany.str);
+    if(sellerCompany)rec.sellerName=cleanCompany(sellerCompany.str);
+    const taxItems=all.map(i=>({...i,v:compact(i.str)})).filter(i=>/^[0-9A-Z]{18}$/.test(i.v)&&/[A-Z]/.test(i.v));
+    const buyerTax=taxItems.filter(i=>i.x<width*.5).sort((a,b)=>a.rowY-b.rowY)[0];
+    const sellerTax=taxItems.filter(i=>i.x>=width*.5).sort((a,b)=>a.rowY-b.rowY)[0];
+    if(buyerTax)rec.buyerTaxId=buyerTax.v;
+    if(sellerTax)rec.sellerTaxId=sellerTax.v;
+    const itemRow=rows.find(r=>r.items.some(i=>/^\d+(?:\.\d+)?%$/.test(compact(i.str)))&&r.items.some(i=>/\d+\.\d{1,}/.test(i.str)));
+    if(itemRow){
+      const inZone=(a,b)=>itemRow.items.filter(i=>i.x>=width*a&&i.x<width*b).map(i=>String(i.str).trim()).filter(Boolean);
+      const firstNum=(a,b)=>{const x=inZone(a,b).join(' ').match(/-?\d+(?:\.\d+)?/);return x?Number(x[0]):null;};
+      const project=inZone(0,.19).join(' ').trim();
+      const spec=inZone(.19,.31).join(' ').trim();
+      const unit=inZone(.31,.42).join(' ').trim();
+      const quantity=firstNum(.42,.50),unitPrice=firstNum(.50,.65),amount=firstNum(.65,.75),taxAmount=firstNum(.88,1.01);
+      const rate=(inZone(.75,.88).join(' ').match(/\d+(?:\.\d+)?%/)||[])[0]||'';
+      if(project||amount!==null||taxAmount!==null)rec.items=[{projectName:project,specification:spec,unit,quantity,unitPrice,amount,taxRate:rate,taxAmount}];
+      if(amount!==null)rec.totalAmount=Number(amount.toFixed(2));
+      if(taxAmount!==null)rec.totalTax=Number(taxAmount.toFixed(2));
+    }
+    const currency=all.map(i=>String(i.str).replace(/\s/g,'')).filter(s=>/^[¥￥]-?[\d,]+(?:\.\d{1,2})?$/.test(s)).map(s=>Number(s.replace(/[¥￥,]/g,''))).filter(Number.isFinite);
+    if(currency.length){const sorted=[...currency].sort((a,b)=>b-a);rec.totalAmountWithTax=sorted[0];if(rec.totalAmount===null||rec.totalAmount===undefined)rec.totalAmount=sorted[1]??null;if(rec.totalTax===null||rec.totalTax===undefined)rec.totalTax=sorted[sorted.length-1]??null;}
+    const words=all.map(i=>String(i.str).trim()).find(s=>/^[零壹贰叁肆伍陆柒捌玖拾佰仟万亿圆元角分整]+$/.test(s)&&/[圆元]/.test(s));if(words)rec.totalAmountInWords=words;
+    const drawerLabel=all.find(i=>/开\s*票\s*人/.test(i.str));if(drawerLabel){const drawer=all.filter(i=>Math.abs(i.rowY-drawerLabel.rowY)<8&&i.x>drawerLabel.x).sort((a,b)=>a.x-b.x)[0];if(drawer)rec.drawer=String(drawer.str).trim();}
+    return determine(rec);
+  }
   async function processPdf(file,fileState,fileIndex,totalFiles){ const pdfjs=await ensurePdf(); const data=await file.arrayBuffer();const pdf=await pdfjs.getDocument({data}).promise;const results=[];for(let p=1;p<=pdf.numPages;p++){ const base=((fileIndex+(p-1)/pdf.numPages)/totalFiles)*100;setProgress(base,'正在识别发票',`${file.name} · 第 ${p}/${pdf.numPages} 页`);const page=await pdf.getPage(p);const viewport=page.getViewport({scale:1});const tc=await page.getTextContent();const items=tc.items.filter(x=>x.str&&x.str.trim()).map(x=>({str:x.str,x:x.transform[4],y:x.transform[5],width:x.width||0}));const rows=groupRows(items,viewport.width,viewport.height);let text=rows.map(r=>r.items.map(i=>i.str).join(' ')).join('\n');let method='pdf_text';if(text.replace(/\s/g,'').length<45){method='ocr_pdf';const canvas=document.createElement('canvas');const vp=page.getViewport({scale:2.35});canvas.width=Math.ceil(vp.width);canvas.height=Math.ceil(vp.height);const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);await page.render({canvasContext:ctx,viewport:vp}).promise;const worker=await createOcrWorker((prog,status)=>setProgress(base+prog*(100/totalFiles/pdf.numPages)*.9,'正在进行 OCR',`${file.name} · ${status}`));const o=await worker.recognize(canvas);text=(o.data.text||'').trim();if(text.replace(/\s/g,'').length<20)throw new Error('OCR未识别到足够文字，请使用更清晰的发票');}
-        results.push(parseInvoice(text,{name:file.name,page:p,method,type:'PDF',size:file.size},method==='pdf_text'?rows:null)); }
+        let parsed=parseInvoice(text,{name:file.name,page:p,method,type:'PDF',size:file.size},method==='pdf_text'?rows:null);if(method==='pdf_text')parsed=repairClassicInvoice(parsed,rows,viewport.width,viewport.height);results.push(parsed); }
       return results; }
   async function imageToCanvas(file){const url=URL.createObjectURL(file);try{const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('图片无法打开'));i.src=url;});const scale=Math.min(1,2800/Math.max(img.naturalWidth,img.naturalHeight));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.naturalWidth*scale));c.height=Math.max(1,Math.round(img.naturalHeight*scale));const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);return c;}finally{URL.revokeObjectURL(url);}}
   async function processImage(file,fileIndex,totalFiles){const canvas=await imageToCanvas(file);const worker=await createOcrWorker((prog,status)=>setProgress(((fileIndex+prog*.9)/totalFiles)*100,'正在进行 OCR',`${file.name} · ${status}`));const o=await worker.recognize(canvas);const text=(o.data.text||'').trim();if(text.replace(/\s/g,'').length<20)throw new Error('OCR未识别到足够文字，请使用更清晰的图片');return[parseInvoice(text,{name:file.name,page:1,method:'ocr_image',type:'图片',size:file.size},null)];}
