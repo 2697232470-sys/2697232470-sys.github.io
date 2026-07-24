@@ -23,12 +23,31 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Rebuild company wallpaper
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p generated
+          cat assets/bg-parts/bg.00.txt \
+              assets/bg-parts/bg.01.txt \
+              assets/bg-parts/bg.02.txt \
+              assets/bg-parts/bg.03.txt \
+              assets/bg-parts/bg.04.txt \
+              assets/bg-parts/bg.05.txt \
+            | tr -d '\r\n ' \
+            | base64 --decode > generated/roboparty-bg.jpg
+          test -s generated/roboparty-bg.jpg
+          file generated/roboparty-bg.jpg
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
+
       - name: Upload website
         uses: actions/upload-pages-artifact@v4
         with:
           path: "."
+
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
