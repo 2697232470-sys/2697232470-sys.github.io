@@ -29,7 +29,18 @@
 
   function norm(s){ return String(s||'').replace(/\u3000/g,' ').replace(/[ \t]+/g,' ').replace(/\s*([：:,，])\s*/g,'$1').trim(); }
   function unique(arr){ return [...new Set(arr.filter(Boolean))]; }
-  function cleanCompany(s){ return norm(s).replace(/^(名称|购买方名称|销售方名称)[:：]?/,'').replace(/[：:]$/,'').trim(); }
+  function cleanCompany(s){
+    let v=norm(s).replace(/[|｜]/g,' ').replace(/\s+/g,' ').trim();
+    for(let i=0;i<4;i++) v=v
+      .replace(/^(?:购\s*买\s*方|销\s*售\s*方|购买方信息|销售方信息|购买方|销售方|购|销|信息)\s*/,'')
+      .replace(/^(?:名\s*称|名称)\s*[:：]?\s*/,'');
+    v=v
+      .replace(/\s*(?:购买方信息|销售方信息|购买方|销售方|统一社会信用代码.*|纳税人识别号.*)$/,'')
+      .replace(/^[：:]+|[：:]+$/g,'')
+      .trim();
+    const m=v.match(/[\u4e00-\u9fa5A-Za-z0-9（）()·&\-]{2,80}?(?:有限责任公司|股份有限公司|有限公司|公司|事务所|合作社|商行|中心|厂|个体工商户)/);
+    return (m?m[0]:v).trim();
+  }
   function parseDate(text){ const m=text.match(/(20\d{2})\s*[年\-/.]\s*(\d{1,2})\s*[月\-/.]\s*(\d{1,2})\s*日?/); return m?`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`:''; }
   function nums2(text){ return (text.match(/-?\d[\d,]*\.\d{1,2}/g)||[]).map(v=>Number(v.replace(/,/g,''))).filter(v=>Number.isFinite(v)&&Math.abs(v)<1e9); }
   function lineCandidates(text){ return text.split(/\r?\n/).map(norm).filter(Boolean); }
