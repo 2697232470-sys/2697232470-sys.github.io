@@ -1,0 +1,31 @@
+name: Decode final engine for maintenance
+
+on:
+  push:
+    paths:
+      - '.github/workflows/decode-final-engine.yml'
+      - 'decode-trigger.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  decode:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decode engine
+        run: |
+          python - <<'PY'
+          import base64, gzip, pathlib
+          src = pathlib.Path('final-engine.gz.b64').read_text(encoding='utf-8').strip()
+          code = gzip.decompress(base64.b64decode(src)).decode('utf-8')
+          pathlib.Path('final-engine-decoded.js').write_text(code, encoding='utf-8')
+          PY
+      - name: Commit decoded source
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add final-engine-decoded.js
+          git diff --cached --quiet || git commit -m "Decode final engine for maintenance"
+          git push
