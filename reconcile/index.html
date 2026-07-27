@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate" />
+  <meta name="theme-color" content="#071326" />
+  <title>发票识别与税务局对账</title>
+  <link rel="stylesheet" href="./style.css?v=20260727-1" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <div>
+        <div class="eyebrow">RoboParty 财务工具</div>
+        <h1>发票识别与税务局对账</h1>
+        <p>将网站识别结果与税务局“全量发票查询导出结果”逐张核对，自动找出差异、漏票、重复、红冲和风险状态。</p>
+      </div>
+      <a class="back" href="../">返回发票识别</a>
+    </header>
+
+    <section class="notice">
+      <strong>文件仅在当前浏览器内读取</strong>
+      <span>不会主动上传到网站服务器。税务局报表可能包含大量历史发票和敏感信息，请只在受控电脑上使用。</span>
+    </section>
+
+    <section class="upload-grid">
+      <article class="upload-card" id="recognitionCard">
+        <div class="step">①</div>
+        <h2>上传网站识别结果</h2>
+        <p>支持本站导出的“发票识别结果”、旧版“AI校验汇总”等 Excel。</p>
+        <button class="primary" id="chooseRecognition">选择识别结果 Excel</button>
+        <input id="recognitionInput" type="file" accept=".xlsx,.xls" hidden />
+        <div class="file-state" id="recognitionState">尚未选择文件</div>
+      </article>
+
+      <article class="upload-card" id="taxCard">
+        <div class="step">②</div>
+        <h2>上传税务局导出报表</h2>
+        <p>已适配“全量发票查询导出结果”，自动读取“发票基础信息”和“信息汇总表”。</p>
+        <button class="primary" id="chooseTax">选择税务局 Excel</button>
+        <input id="taxInput" type="file" accept=".xlsx,.xls" hidden />
+        <div class="file-state" id="taxState">尚未选择文件</div>
+      </article>
+    </section>
+
+    <section class="options-card">
+      <div>
+        <h2>对账范围</h2>
+        <p>默认只检查本批 PDF 是否能在税务局报表中找到，避免把全量历史发票全部列为“缺少 PDF”。</p>
+      </div>
+      <label class="switch-row">
+        <input id="includeTaxOnly" type="checkbox" />
+        <span>同时检查本批日期范围内“税务局有、PDF没有”的记录</span>
+      </label>
+      <label class="switch-row">
+        <input id="useTaxTruth" type="checkbox" checked />
+        <span>最终确认结果优先采用税务局核心字段，并保留修改日志</span>
+      </label>
+      <button class="run" id="runBtn" disabled>③ 开始自动对账</button>
+    </section>
+
+    <section class="progress-card hidden" id="progressCard">
+      <div class="progress-head"><strong id="progressTitle">正在读取文件</strong><span id="progressPercent">0%</span></div>
+      <div class="track"><div class="bar" id="progressBar"></div></div>
+      <p id="progressDetail">准备中</p>
+    </section>
+
+    <section class="results hidden" id="results">
+      <div class="metrics">
+        <div class="metric"><span>识别结果</span><b id="mTotal">0</b></div>
+        <div class="metric ok"><span>完全一致</span><b id="mMatched">0</b></div>
+        <div class="metric corrected"><span>自动修正</span><b id="mCorrected">0</b></div>
+        <div class="metric warn"><span>字段差异</span><b id="mDifference">0</b></div>
+        <div class="metric bad"><span>税务异常</span><b id="mAbnormal">0</b></div>
+        <div class="metric missing"><span>税局未找到</span><b id="mPdfOnly">0</b></div>
+        <div class="metric taxonly"><span>税局有PDF无</span><b id="mTaxOnly">0</b></div>
+      </div>
+
+      <section class="result-card">
+        <div class="toolbar">
+          <div class="tabs" id="tabs">
+            <button class="tab active" data-view="summary">对账汇总</button>
+            <button class="tab" data-view="differences">字段差异</button>
+            <button class="tab" data-view="abnormal">税务异常</button>
+            <button class="tab" data-view="pdfOnly">PDF有税局无</button>
+            <button class="tab" data-view="taxOnly">税局有PDF无</button>
+            <button class="tab" data-view="details">明细核对</button>
+          </div>
+          <div class="tools">
+            <input id="searchInput" placeholder="搜索文件名、发票号码或单位" />
+            <button class="primary" id="exportBtn">导出对账结果 Excel</button>
+          </div>
+        </div>
+        <div class="table-wrap" id="tableWrap"></div>
+      </section>
+    </section>
+  </main>
+  <div class="toast hidden" id="toast"></div>
+  <script type="module" src="./app.js?v=20260727-1"></script>
+</body>
+</html>
